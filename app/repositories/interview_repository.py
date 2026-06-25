@@ -1,5 +1,6 @@
 import os
 from typing import Dict, List, Optional
+from urllib import response
 
 from boto3.dynamodb.conditions import Key
 
@@ -32,3 +33,18 @@ class InterviewRepository:
             ScanIndexForward=False,
         )
         return response.get("Items", [])
+    
+    def update_status(self,interview_id: str,status: str,updated_at: str):
+        response = self.table.update_item(
+            Key={
+                "interview_id": interview_id,
+            },
+            UpdateExpression="SET #status = :status, updated_at = :updated_at",
+            ExpressionAttributeNames={
+                "#status": "status",
+            },
+            ExpressionAttributeValues={
+                ":status": status,
+                ":updated_at": updated_at,
+            },
+        )
