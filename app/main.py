@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.routers.interview_router import router as interview_router
+from app.routers.user_router import router as user_router
 
 
 app = FastAPI(
@@ -18,3 +19,4 @@ def health_check():
 
 
 app.include_router(interview_router)
+app.include_router(user_router)
