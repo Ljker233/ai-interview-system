@@ -13,6 +13,10 @@ class InterviewQuestionRepository:
         self.table = dynamodb.Table(table_name)
         self.interview_questions_index_name = "interview_id-order-index"
 
+    def save(self, question: dict) -> dict:
+        self.table.put_item(Item=question)
+        return question
+
     def save_many(self, questions: List[Dict]) -> List[Dict]:
         with self.table.batch_writer() as batch:
             for question in questions:
@@ -27,3 +31,9 @@ class InterviewQuestionRepository:
             ScanIndexForward=True,
         )
         return response.get("Items", [])
+    
+    def find_by_id(self, question_id: str) -> Dict:
+        response = self.table.get_item(
+            Key={"question_id": question_id}
+        )
+        return response.get("Item")
