@@ -1,6 +1,5 @@
 import json
 import os
-from typing import Any
 
 import boto3
 
@@ -8,62 +7,90 @@ import boto3
 class SQSService:
     def __init__(self):
         aws_region = os.getenv("AWS_REGION", "us-east-1")
-        queue_url = os.getenv("QUESTION_GENERATION_QUEUE_URL")
 
-        if not queue_url:
-            raise ValueError("QUESTION_GENERATION_QUEUE_URL is not configured")
-
-        self.queue_url = queue_url
         self.sqs_client = boto3.client(
             "sqs",
             region_name=aws_region,
         )
 
-    def send_question_generation_job(self, interview_id: str) -> None:
-        """
-        Producer side.
+        self.question_generation_queue_url = os.getenv(
+            "QUESTION_GENERATION_QUEUE_URL"
+        )
 
-        Called by InterviewService after creating an interview.
-        The message only contains interview_id because DynamoDB is the source of truth.
-        """
-        message = {
+        self.answer_evaluation_queue_url = os.getenv(
+            "ANSWER_EVALUATION_QUEUE_URL"
+        )
+
+    def send_question_generation_job(self, interview_id: str) -> None:
+        if not self.question_generation_queue_url:
+            raise ValueError("QUESTION_GENERATION_QUEUE_URL is not configured")
+
+        message_body = {
             "job_type": "GENERATE_INTERVIEW_QUESTIONS",
             "interview_id": interview_id,
             "schema_version": "1.0",
         }
 
         self.sqs_client.send_message(
-            QueueUrl=self.queue_url,
-            MessageBody=json.dumps(message),
-            MessageAttributes={
-                "job_type": {
-                    "StringValue": "GENERATE_INTERVIEW_QUESTIONS",
-                    "DataType": "String",
-                }
-            },
+            QueueUrl=self.question_generation_queue_url,
+            MessageBody=json.dumps(message_body),
         )
 
-    def receive_messages(self) -> list[dict[str, Any]]:
-        """
-        Consumer side.
+    def send_answer_evaluation_job(self, answer_id: str) -> None:
+        if not self.answer_evaluation_queue_url:
+            raise ValueError("ANSWER_EVALUATION_QUEUE_URL is not configured")
 
-        Receive at most one message at a time.
-        WaitTimeSeconds=10 enables long polling.
-        """
+        message_body = {
+            "job_type": "EVALUATE_ANSWER",
+            "answer_id": answer_id,
+            "schema_version": "1.0",
+        }
+
+        self.sqs_client.send_message(
+            QueueUrl=self.answer_evaluation_queue_url,
+            MessageBody=json.dumps(message_body),
+        )
+
+    def receive_question_generation_messages(self) -> list[dict]:
+        if not self.question_generation_queue_url:
+            raise ValueError("QUESTION_GENERATION_QUEUE_URL is not configured")
+
         response = self.sqs_client.receive_message(
-            QueueUrl=self.queue_url,
-            MaxNumberOfMessages=1,
+            QueueUrl=self.question_generation_queue_url,
+            MaxNumberOfMessages=5,
             WaitTimeSeconds=10,
-            MessageAttributeNames=["All"],
+            VisibilityTimeout=30,
         )
 
         return response.get("Messages", [])
 
-    def delete_message(self, receipt_handle: str) -> None:
-        """
-        Delete the message only after processing succeeds.
-        """
+    def delete_question_generation_message(self, receipt_handle: str) -> None:
+        if not self.question_generation_queue_url:
+            raise ValueError("QUESTION_GENERATION_QUEUE_URL is not configured")
+
         self.sqs_client.delete_message(
-            QueueUrl=self.queue_url,
+            QueueUrl=self.question_generation_queue_url,
+            ReceiptHandle=receipt_handle,
+        )
+
+    def receive_answer_evaluation_messages(self) -> list[dict]:
+        if not self.answer_evaluation_queue_url:
+            raise ValueError("ANSWER_EVALUATION_QUEUE_URL is not configured")
+
+        response = self.sqs_client.receive_message(
+            QueueUrl=self.answer_evaluation_queue_url,
+            MaxNumberOfMessages=5,
+            WaitTimeSeconds=10,
+            VisibilityTimeout=30,
+        )
+
+        return response.get("Messages", [])
+
+    def delete_answer_evaluation_message(self, receipt_handle: str) -> None:
+        if not self.answer_evaluation_queue_url:
+            raise ValueError("ANSWER_EVALUATION_QUEUE_URL is not configured")
+
+        self.sqs_client.delete_message(
+            QueueUrl=self.answer_evaluation_queue_url,
             ReceiptHandle=receipt_handle,
         )

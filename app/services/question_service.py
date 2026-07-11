@@ -43,7 +43,7 @@ class QuestionService:
         print("Question generation listener started...")
 
         while True:
-            messages = self.sqs_service.receive_messages()
+            messages = self.sqs_service.receive_question_generation_messages()
 
             if not messages:
                 print("No messages. Waiting...")
@@ -56,7 +56,7 @@ class QuestionService:
 
                     self.process_sqs_message(message)
 
-                    self.sqs_service.delete_message(
+                    self.sqs_service.delete_question_generation_message(
                         receipt_handle=message["ReceiptHandle"]
                     )
 

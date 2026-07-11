@@ -11,5 +11,30 @@ class AnswerRepository:
         self.table = dynamodb.Table(table_name)
 
     def find_by_id(self, answer_id: str) -> Optional[dict]:
-        response = self.table.get_item(Key={"answer_id": answer_id})
+        response = self.table.get_item(
+            Key={
+                "answer_id": answer_id,
+            }
+        )
+
         return response.get("Item")
+
+    def update_status(
+        self,
+        answer_id: str,
+        status: str,
+        updated_at: str,
+    ) -> None:
+        self.table.update_item(
+            Key={
+                "answer_id": answer_id,
+            },
+            UpdateExpression="SET #status = :status, updated_at = :updated_at",
+            ExpressionAttributeNames={
+                "#status": "status",
+            },
+            ExpressionAttributeValues={
+                ":status": status,
+                ":updated_at": updated_at,
+            },
+        )

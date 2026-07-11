@@ -11,9 +11,11 @@ from app.services.question_service import QuestionService
 from app.services.sqs_service import SQSService
 from app.services.ai_service import AIService
 from app.services.answer_service import AnswerService
+from app.services.evaluation_service import EvaluationService
 from app.repositories.interview_question_repository import InterviewQuestionRepository
 from app.repositories.question_generation_transaction_repository import QuestionGenerationTransactionRepository
 from app.repositories.answer_transaction_repository import AnswerTransactionRepository
+from app.repositories.evaluation_repository import EvaluationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ ai_service = AIService()
 transaction_repository = QuestionGenerationTransactionRepository()
 answer_repository = AnswerRepository()
 answer_transaction_repository = AnswerTransactionRepository()
+evaluation_repository = EvaluationRepository()
 
 
 service = InterviewService(
@@ -49,8 +52,16 @@ answer_service = AnswerService(
     answer_transaction_repository=answer_transaction_repository,
     interview_repository=interview_repository,
     interview_question_repository=interview_question_repository,
+    sqs_service=sqs_service,
 )
 
+evaluation_service = EvaluationService(
+    answer_repository=answer_repository,
+    evaluation_repository=evaluation_repository,
+    interview_question_repository=interview_question_repository,
+    interview_repository=interview_repository,
+    ai_service=ai_service,
+)
 
 
 
@@ -113,4 +124,22 @@ def submit_answer(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to submit answer: {str(error)}",
+        )
+        
+@router.get("/{interview_id}/questions/{question_id}/answer/evaluation")
+def get_answer_evaluation(
+    interview_id: str,
+    question_id: str,
+):
+    try:
+        return evaluation_service.get_evaluation_for_question(
+            interview_id=interview_id,
+            question_id=question_id,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get evaluation: {str(error)}",
         )

@@ -8,6 +8,7 @@ from app.repositories.interview_question_repository import (
     InterviewQuestionRepository,
 )
 from app.repositories.interview_repository import InterviewRepository
+from app.services.sqs_service import SQSService
 
 
 class AnswerService:
@@ -17,11 +18,13 @@ class AnswerService:
         answer_transaction_repository: AnswerTransactionRepository,
         interview_repository: InterviewRepository,
         interview_question_repository: InterviewQuestionRepository,
+        sqs_service: SQSService,
     ):
         self.answer_repository = answer_repository
         self.answer_transaction_repository = answer_transaction_repository
         self.interview_repository = interview_repository
         self.interview_question_repository = interview_question_repository
+        self.sqs_service = sqs_service
 
     def submit_answer(
         self,
@@ -53,8 +56,6 @@ class AnswerService:
         if existing_answer is not None:
             raise ValueError("Answer already exists for this question")
 
-        # Do not ask the client to pass user_id here.
-        # The answer inherits user_id from the interview.
         answer_item = {
             "answer_id": answer_id,
             "interview_id": interview_id,
@@ -79,6 +80,8 @@ class AnswerService:
             updated_at=submitted_at,
         )
 
+        self.sqs_service.send_answer_evaluation_job(answer_id)
+
         return {
             "answer_id": answer_id,
             "interview_id": interview_id,
@@ -100,9 +103,10 @@ class AnswerService:
         if not questions:
             return
 
-        # GSI query may be eventually consistent. Treat the current question as answered.
         all_answered = True
         for question in questions:
+            # GSI query can be eventually consistent.
+            # Treat the current question as answered.
             if question.get("question_id") == answered_question_id:
                 continue
 
