@@ -16,13 +16,11 @@ from app.repositories.interview_question_repository import InterviewQuestionRepo
 from app.repositories.question_generation_transaction_repository import QuestionGenerationTransactionRepository
 from app.repositories.answer_transaction_repository import AnswerTransactionRepository
 from app.repositories.evaluation_repository import EvaluationRepository
+from app.services.interview_query_service import InterviewQueryService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/interviews",
-    tags=["interviews"],
-)
+router = APIRouter()
 
 interview_repository = InterviewRepository()
 interview_question_repository = InterviewQuestionRepository()
@@ -61,6 +59,13 @@ evaluation_service = EvaluationService(
     interview_question_repository=interview_question_repository,
     interview_repository=interview_repository,
     ai_service=ai_service,
+)
+
+interview_query_service = InterviewQueryService(
+    interview_repository=InterviewRepository(),
+    interview_question_repository=InterviewQuestionRepository(),
+    answer_repository=AnswerRepository(),
+    evaluation_repository=EvaluationRepository(),
 )
 
 
@@ -142,4 +147,28 @@ def get_answer_evaluation(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get evaluation: {str(error)}",
+        )
+        
+@router.get("/{interview_id}/details")
+def get_interview_details(interview_id: str):
+    try:
+        return interview_query_service.get_interview_details(interview_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get interview details: {str(error)}",
+        )
+        
+@router.get("/{user_id}/interviews")
+def list_user_interviews(user_id: str):
+    try:
+        return interview_query_service.list_interviews_by_user(user_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list user interviews: {str(error)}",
         )

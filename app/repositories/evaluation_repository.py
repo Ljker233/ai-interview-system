@@ -19,6 +19,17 @@ class EvaluationRepository:
 
         return response.get("Item")
 
+    def find_by_answer_id(self, answer_id: str) -> Optional[dict]:
+        """
+        This works because we use deterministic evaluation id:
+
+        evaluation_id = f"eval_{answer_id}"
+
+        The current project only allows one evaluation per answer.
+        """
+        evaluation_id = self.build_evaluation_id(answer_id)
+        return self.find_by_id(evaluation_id)
+
     def save(self, evaluation: dict) -> dict:
         self.table.put_item(
             Item=evaluation,
@@ -93,3 +104,6 @@ class EvaluationRepository:
                 ":updated_at": updated_at,
             },
         )
+
+    def build_evaluation_id(self, answer_id: str) -> str:
+        return f"eval_{answer_id}"

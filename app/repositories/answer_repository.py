@@ -19,6 +19,17 @@ class AnswerRepository:
 
         return response.get("Item")
 
+    def find_by_question_id(self, question_id: str) -> Optional[dict]:
+        """
+        This works because we use deterministic answer id:
+
+        answer_id = f"ans_{question_id}"
+
+        The current project only allows one answer per question.
+        """
+        answer_id = self.build_answer_id(question_id)
+        return self.find_by_id(answer_id)
+
     def update_status(
         self,
         answer_id: str,
@@ -38,3 +49,6 @@ class AnswerRepository:
                 ":updated_at": updated_at,
             },
         )
+
+    def build_answer_id(self, question_id: str) -> str:
+        return f"ans_{question_id}"

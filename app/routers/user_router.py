@@ -6,10 +6,7 @@ from app.services.s3_service import S3Service
 from app.services.user_service import UserService
 
 
-router = APIRouter(
-    prefix="/users",
-    tags=["users"],
-)
+router = APIRouter()
 
 user_service = UserService(
     user_repository=UserRepository(),
